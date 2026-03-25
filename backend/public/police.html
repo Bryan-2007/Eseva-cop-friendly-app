@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TNPOL - Police Verification</title>
+    <style>
+      body { font-family: Arial, Helvetica, sans-serif; margin: 16px; background: #f7f7f8; }
+      .container { max-width: 980px; margin: 0 auto; background: white; padding: 16px; border-radius: 12px; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; }
+      .col { flex: 1; min-width: 240px; }
+      input, textarea, select { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #dcdcdc; }
+      label { display: block; margin-top: 10px; margin-bottom: 6px; font-weight: 600; }
+      button { padding: 10px 14px; border-radius: 10px; border: 0; cursor: pointer; }
+      .primary { background: #1f6feb; color: white; }
+      .ghost { background: #eaeaea; }
+      .danger { background: #e23b3b; color: white; }
+      .card { border: 1px solid #e6e6e6; border-radius: 12px; padding: 12px; background: #fcfcfc; margin-top: 10px; }
+      .thumbs img { width: 90px; height: 70px; object-fit: cover; border-radius: 8px; margin-right: 8px; border: 1px solid #eee; }
+      .muted { color: #666; font-size: 13px; }
+      .status { font-weight: 800; }
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body data-page="police">
+    <div class="container">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div>
+          <h2 style="margin:0;">Police Verification</h2>
+          <div class="muted">Verify submitted reports to trigger rewards.</div>
+        </div>
+        <div class="row" style="align-items:center;">
+          <a href="/" class="ghost" style="text-decoration:none; color:#111; padding:10px 14px; border-radius:10px;">Back to App</a>
+        </div>
+      </div>
+
+      <div id="loginPanel" class="card">
+        <h3 style="margin-top:0;">Police login</h3>
+        <form id="policeLoginForm">
+          <label for="username">Username</label>
+          <input id="username" name="username" placeholder="admin" required />
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" placeholder="admin123" required />
+          <div class="muted">MVP seed: set `POLICE_USERNAME` and `POLICE_PASSWORD` in the server env.</div>
+          <div id="formError" class="muted" style="color:#b40000; margin-top:10px;"></div>
+          <button class="primary" type="submit" style="margin-top:12px;">Login</button>
+        </form>
+      </div>
+
+      <div id="dashboard" class="hidden">
+        <div class="row" style="align-items:flex-end; justify-content:space-between;">
+          <div class="col" style="min-width:260px;">
+            <label for="statusSelect">Complaint status</label>
+            <select id="statusSelect">
+              <option value="submitted">Submitted (verify/reject)</option>
+              <option value="verified">Verified</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          <div class="col" style="min-width:180px;">
+            <button class="ghost" id="refreshBtn" type="button" style="margin-top:22px;">Refresh</button>
+          </div>
+        </div>
+
+        <div id="policeComplaints" class="muted" style="margin-top:12px;">Loading...</div>
+      </div>
+    </div>
+
+    <script src="/police.js"></script>
+  </body>
+</html>
+

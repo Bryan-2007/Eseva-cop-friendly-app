@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TNPOL - Complaint</title>
+    <style>
+      body { font-family: Arial, Helvetica, sans-serif; margin: 16px; background: #f7f7f8; }
+      .container { max-width: 900px; margin: 0 auto; background: white; padding: 16px; border-radius: 12px; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; }
+      .col { flex: 1; min-width: 240px; }
+      input, textarea { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #dcdcdc; }
+      textarea { min-height: 110px; resize: vertical; }
+      label { display: block; margin-top: 10px; margin-bottom: 6px; font-weight: 600; }
+      button { padding: 10px 14px; border-radius: 10px; border: 0; cursor: pointer; }
+      .primary { background: #1f6feb; color: white; }
+      .ghost { background: #eaeaea; }
+      .danger { background: #e23b3b; color: white; }
+      .sos { width: 100%; padding: 18px; font-size: 18px; border-radius: 16px; border: 2px solid #b40000; }
+      .muted { color: #666; font-size: 13px; }
+      .notice { background: #fff7e6; border: 1px solid #ffe2a8; padding: 12px; border-radius: 12px; margin: 10px 0; }
+      .hidden { display: none; }
+      .list { margin-top: 12px; }
+      .card { border: 1px solid #e6e6e6; border-radius: 12px; padding: 12px; background: #fcfcfc; margin-top: 10px; }
+      .thumbs img { width: 80px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 8px; border: 1px solid #eee; }
+      .status { font-weight: 700; }
+    </style>
+  </head>
+  <body data-page="complaint">
+    <div class="container">
+      <div class="row" style="align-items:center; justify-content:space-between;">
+        <div>
+          <h2 style="margin:0;">TNPOL</h2>
+          <div class="muted">Report incidents and track rewards</div>
+        </div>
+        <div class="row" style="align-items:center;">
+          <a href="/rewards" class="ghost" style="text-decoration:none; color:#111;">Rewards</a>
+          <div id="authArea" class="row" style="align-items:center; gap:10px;">
+            <a id="loginLink" href="/login" class="ghost" style="text-decoration:none; color:#111; padding:10px 14px; border-radius:10px;">Login</a>
+            <a id="registerLink" href="/register" class="primary" style="text-decoration:none; color:white;">Register</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="notice" id="meNotice">
+        You must be logged in to submit a report so police can verify you for rewards.
+      </div>
+
+      <div class="row" style="margin-top: 16px;">
+        <div class="col">
+          <button id="sosBtn" class="danger sos" type="button">SOS (Tap 3 times)</button>
+          <div class="muted" style="margin-top:8px;">
+            Triple-tap triggers a call to the emergency helpline <b>100</b>.
+          </div>
+        </div>
+      </div>
+
+      <hr style="margin: 18px 0;" />
+
+      <h3>Raise a complaint / report</h3>
+      <form id="complaintForm">
+        <div class="row">
+          <div class="col">
+            <label for="locationTag">Location tag</label>
+            <input id="locationTag" name="locationTag" placeholder="e.g., Near Main Road, Ward 12" required />
+            <button class="ghost" type="button" id="gpsBtn" style="margin-top:10px;">Use my GPS location</button>
+            <div class="muted" style="margin-top:6px;">If GPS is enabled, we’ll store latitude/longitude.</div>
+          </div>
+          <div class="col">
+            <label for="identityText">Reporter identity (optional)</label>
+            <input id="identityText" name="identityText" placeholder="Name or contact (optional)" />
+            <div class="muted">You’re already logged in, but you can optionally share details for follow-up.</div>
+          </div>
+        </div>
+
+        <label for="description">Description</label>
+        <textarea id="description" name="description" placeholder="What happened? Include key details..." required></textarea>
+
+        <label for="evidence">Images as evidence (optional)</label>
+        <input id="evidence" name="evidence" type="file" accept="image/*" multiple />
+        <div class="muted">Up to 10 images, 5MB each.</div>
+
+        <div class="row" style="margin-top: 14px;">
+          <button class="primary" type="submit">Submit report</button>
+          <button class="ghost" type="button" id="viewMyReportsBtn">View my reports</button>
+        </div>
+        <div id="formError" class="muted" style="color:#b40000; margin-top:10px;"></div>
+      </form>
+
+      <div id="myReports" class="list hidden"></div>
+    </div>
+
+    <script src="/client.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TNPOL - Rewards</title>
+    <style>
+      body { font-family: Arial, Helvetica, sans-serif; margin: 16px; background: #f7f7f8; }
+      .container { max-width: 900px; margin: 0 auto; background: white; padding: 16px; border-radius: 12px; }
+      button { padding: 10px 14px; border-radius: 10px; border: 0; cursor: pointer; }
+      .primary { background: #1f6feb; color: white; }
+      .ghost { background: #eaeaea; }
+      .muted { color: #666; font-size: 13px; }
+      .card { border: 1px solid #e6e6e6; border-radius: 12px; padding: 12px; background: #fcfcfc; margin-top: 10px; }
+      .status { font-weight: 700; }
+      .code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background: #f3f3f3; padding: 3px 8px; border-radius: 8px; }
+      a { color: inherit; }
+      input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #dcdcdc; }
+    </style>
+  </head>
+  <body data-page="rewards">
+    <div class="container">
+      <div class="row" style="display:flex; gap:12px; align-items:center; justify-content:space-between;">
+        <div>
+          <h2 style="margin:0;">Rewards</h2>
+          <div class="muted">Cash prizes after police verification</div>
+        </div>
+        <div class="row" style="display:flex; gap:10px;">
+          <a href="/" class="ghost" style="text-decoration:none; padding:10px 14px; border-radius:10px;">Back</a>
+          <a href="/police" class="ghost" style="text-decoration:none; padding:10px 14px; border-radius:10px;">Police Login</a>
+        </div>
+      </div>
+
+      <div id="authArea" class="card">
+        <div id="meLine" class="muted">Loading...</div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Referral rewards</h3>
+        <div class="muted">Share your referral link. When your friend registers, you receive reward automatically.</div>
+        <div style="margin-top:10px;">
+          Your referral code: <span class="code" id="referralCode">-</span>
+        </div>
+        <div style="margin-top:10px;">
+          <div class="muted">Referral link</div>
+          <input id="referralLink" readonly />
+        </div>
+        <div style="margin-top:10px;">
+          <button class="ghost" id="copyReferralBtn" type="button">Copy link</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Your reward history</h3>
+        <div id="rewardsList" class="muted">Loading...</div>
+      </div>
+    </div>
+
+    <script src="/client.js"></script>
+  </body>
+</html>
+

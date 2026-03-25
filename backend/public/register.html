@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TNPOL - Register</title>
+    <style>
+      body { font-family: Arial, Helvetica, sans-serif; margin: 16px; background: #f7f7f8; }
+      .container { max-width: 520px; margin: 0 auto; background: white; padding: 16px; border-radius: 12px; }
+      label { display: block; margin-top: 10px; margin-bottom: 6px; font-weight: 600; }
+      input { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #dcdcdc; }
+      button { padding: 10px 14px; border-radius: 10px; border: 0; cursor: pointer; margin-top: 12px; }
+      .primary { background: #1f6feb; color: white; }
+      .ghost { background: #eaeaea; }
+      .muted { color: #666; font-size: 13px; }
+      .error { color: #b40000; margin-top: 10px; font-size: 13px; }
+      a { text-decoration: none; }
+    </style>
+  </head>
+  <body data-page="register">
+    <div class="container">
+      <h2 style="margin-top:0;">Register</h2>
+      <div class="muted">You need an account to submit reports and receive rewards after police verification.</div>
+
+      <form id="registerForm">
+        <label for="displayName">Name</label>
+        <input id="displayName" name="displayName" placeholder="Your name" required />
+
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" placeholder="you@example.com" required />
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" placeholder="Min 6 characters" required />
+
+        <div class="muted" style="margin-top:12px;">
+          Referral code is optional. If you opened a referral link, it will be used automatically.
+        </div>
+
+        <div class="error" id="formError"></div>
+        <button class="primary" type="submit">Create account</button>
+        <button class="ghost" type="button" id="goLoginBtn">I already have an account</button>
+      </form>
+    </div>
+
+    <script src="/client.js"></script>
+  </body>
+</html>
+
