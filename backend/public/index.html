@@ -18,12 +18,71 @@
       .danger { background: #e23b3b; color: white; }
       .sos { width: 100%; padding: 18px; font-size: 18px; border-radius: 16px; border: 2px solid #b40000; }
       .muted { color: #666; font-size: 13px; }
+      .error { color: #b40000; margin-top: 10px; font-size: 13px; }
       .notice { background: #fff7e6; border: 1px solid #ffe2a8; padding: 12px; border-radius: 12px; margin: 10px 0; }
-      .hidden { display: none; }
+      .hidden { display: none !important; }
       .list { margin-top: 12px; }
       .card { border: 1px solid #e6e6e6; border-radius: 12px; padding: 12px; background: #fcfcfc; margin-top: 10px; }
       .thumbs img { width: 80px; height: 60px; object-fit: cover; border-radius: 8px; margin-right: 8px; border: 1px solid #eee; }
       .status { font-weight: 700; }
+      .topRightActions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .profileWrap { position: relative; }
+      .profileMenu {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        width: 240px;
+        background: white;
+        border: 1px solid #e6e6e6;
+        border-radius: 12px;
+        box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+        padding: 10px;
+      }
+      .profileMenu button, .profileMenu .menuItem {
+        width: 100%;
+        margin-top: 6px;
+        text-align: left;
+        background: #f3f3f3;
+      }
+      .profileMenu .menuItem { padding: 10px 12px; border-radius: 10px; cursor: pointer; }
+      .profileMenu .menuItem.danger { background: #ffecec; }
+      .profileMenu .menuHeader { font-weight: 800; padding: 6px 4px 10px; }
+      .modalOverlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+      }
+      .modal {
+        width: min(560px, 92vw);
+        background: white;
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 18px 50px rgba(0,0,0,0.28);
+      }
+      .modal textarea { min-height: 120px; }
+      .alarmOverlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2500;
+        pointer-events: auto;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 14vh;
+      }
+      .alarmEmoji {
+        pointer-events: none;
+        font-size: 96px;
+        filter: drop-shadow(0 16px 30px rgba(180, 0, 0, 0.35));
+        animation: alarmFlash 0.9s linear infinite, alarmHover 1.1s ease-in-out infinite, alarmPulse 0.9s ease-in-out infinite;
+      }
+      @keyframes alarmFlash { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+      @keyframes alarmHover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+      @keyframes alarmPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
     </style>
   </head>
   <body data-page="complaint">
@@ -34,10 +93,22 @@
           <div class="muted">Report incidents and track rewards</div>
         </div>
         <div class="row" style="align-items:center;">
-          <a href="/rewards" class="ghost" style="text-decoration:none; color:#111;">Rewards</a>
+          <a href="/rewards.html" class="ghost" style="text-decoration:none; color:#111;">Rewards</a>
+          <div class="topRightActions">
+            <button id="viewMyReportsBtn" class="ghost hidden" type="button" style="text-decoration:none; color:#111; padding:10px 14px; border-radius:10px;">View my reports</button>
+            <div class="profileWrap hidden" id="profileWrap">
+              <button id="profileToggleBtn" class="ghost" type="button" style="padding:10px 14px; border-radius:10px; color:#111;">Profile</button>
+              <div id="profileMenu" class="profileMenu hidden" aria-hidden="true">
+                <div class="menuHeader" id="profileMenuHeader">User</div>
+                <button class="menuItem" id="feedbackBtn" type="button">Give feedback</button>
+                <button class="menuItem danger" id="logoutBtn" type="button">Logout</button>
+                <button class="menuItem" id="profileCloseBtn" type="button">Close</button>
+              </div>
+            </div>
+          </div>
           <div id="authArea" class="row" style="align-items:center; gap:10px;">
-            <a id="loginLink" href="/login" class="ghost" style="text-decoration:none; color:#111; padding:10px 14px; border-radius:10px;">Login</a>
-            <a id="registerLink" href="/register" class="primary" style="text-decoration:none; color:white;">Register</a>
+            <a id="loginLink" href="/login.html" class="ghost" style="text-decoration:none; color:#111; padding:10px 14px; border-radius:10px;">Login</a>
+            <a id="registerLink" href="/register.html" class="primary" style="text-decoration:none; color:white;">Register</a>
           </div>
         </div>
       </div>
@@ -50,7 +121,7 @@
         <div class="col">
           <button id="sosBtn" class="danger sos" type="button">SOS (Tap 3 times)</button>
           <div class="muted" style="margin-top:8px;">
-            Triple-tap triggers a call to the emergency helpline <b>100</b>.
+            Triple-tap triggers an emergency call to <b>100</b> and shows an alarm on screen.
           </div>
         </div>
       </div>
@@ -82,12 +153,28 @@
 
         <div class="row" style="margin-top: 14px;">
           <button class="primary" type="submit">Submit report</button>
-          <button class="ghost" type="button" id="viewMyReportsBtn">View my reports</button>
         </div>
         <div id="formError" class="muted" style="color:#b40000; margin-top:10px;"></div>
       </form>
 
       <div id="myReports" class="list hidden"></div>
+    </div>
+
+    <div id="feedbackModal" class="modalOverlay hidden" aria-hidden="true">
+      <div class="modal">
+        <h3 style="margin-top:0;">Give feedback</h3>
+        <div class="muted" style="margin-bottom:10px;">Your feedback helps improve TNPOL.</div>
+        <textarea id="feedbackMessage" placeholder="Write your feedback..." style="width:100%;"></textarea>
+        <div class="row" style="margin-top:12px; gap:10px; justify-content:flex-end;">
+          <button class="ghost" id="feedbackCloseBtn" type="button">Close</button>
+          <button class="primary" id="feedbackSubmitBtn" type="button">Submit</button>
+        </div>
+        <div id="feedbackError" class="error hidden" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <div id="alarmOverlay" class="alarmOverlay hidden" aria-hidden="true">
+      <div class="alarmEmoji" aria-hidden="true">🚨</div>
     </div>
 
     <script src="/client.js"></script>

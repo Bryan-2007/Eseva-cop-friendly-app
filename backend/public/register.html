@@ -22,7 +22,7 @@
       <h2 style="margin-top:0;">Register</h2>
       <div class="muted">You need an account to submit reports and receive rewards after police verification.</div>
 
-      <form id="registerForm">
+      <form id="registerForm" action="/api/auth/register" method="POST">
         <label for="displayName">Name</label>
         <input id="displayName" name="displayName" placeholder="Your name" required />
 
@@ -38,7 +38,7 @@
 
         <div class="error" id="formError"></div>
         <button class="primary" type="submit">Create account</button>
-        <button class="ghost" type="button" id="goLoginBtn">I already have an account</button>
+        <button class="ghost" type="button" id="goLoginBtn" onclick="location.href='/login'">I already have an account</button>
       </form>
     </div>
 

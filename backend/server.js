@@ -97,6 +97,14 @@ function initDb() {
       FOREIGN KEY(user_id) REFERENCES users(id)
     );
 
+    CREATE TABLE IF NOT EXISTS feedback (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_rewards_user_id ON rewards(user_id);
     CREATE INDEX IF NOT EXISTS idx_complaints_user_id ON complaints(user_id);
   `);
@@ -183,6 +191,7 @@ function userPublicFields(userRow) {
 // ---------- Auth ----------
 app.post('/api/auth/register', async (req, res) => {
   try {
+    const wantsJson = (req.headers['content-type'] || '').includes('application/json');
     const email = String(req.body.email || '').trim().toLowerCase();
     const password = String(req.body.password || '');
     const displayName = String(req.body.displayName || '').trim();
@@ -241,12 +250,14 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     req.session.userId = id;
-    return res.json({
+    const payload = {
       ok: true,
-      user: userPublicFields(
-        db.prepare('SELECT * FROM users WHERE id = ?').get(id)
-      ),
-    });
+      user: userPublicFields(db.prepare('SELECT * FROM users WHERE id = ?').get(id)),
+    };
+
+    // If this was submitted by an HTML form (not fetch JSON), redirect so the button works.
+    if (!wantsJson) return res.redirect('/');
+    return res.json(payload);
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: 'Server error' });
@@ -255,6 +266,7 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   try {
+    const wantsJson = (req.headers['content-type'] || '').includes('application/json');
     const email = String(req.body.email || '').trim().toLowerCase();
     const password = String(req.body.password || '');
     if (!email || !password) return res.status(400).json({ error: 'Missing fields' });
@@ -266,7 +278,9 @@ app.post('/api/auth/login', async (req, res) => {
     if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
 
     req.session.userId = user.id;
-    return res.json({ ok: true, user: userPublicFields(user) });
+    const payload = { ok: true, user: userPublicFields(user) };
+    if (!wantsJson) return res.redirect('/');
+    return res.json(payload);
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: 'Server error' });
@@ -276,6 +290,28 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/me', requireUser, (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   return res.json({ user: userPublicFields(user) });
+});
+
+// ---------- Logout / Feedback ----------
+app.post('/api/auth/logout', requireUser, (req, res) => {
+  req.session.destroy(() => {
+    return res.json({ ok: true });
+  });
+});
+
+app.post('/api/feedback', requireUser, (req, res) => {
+  try {
+    const message = String(req.body.message || '').trim();
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+    const id = randomId();
+    db.prepare(
+      'INSERT INTO feedback (id, user_id, message, created_at) VALUES (?, ?, ?, ?)'
+    ).run(id, req.session.userId, message, Date.now());
+    return res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: 'Server error' });
+  }
 });
 
 // ---------- Police Auth ----------

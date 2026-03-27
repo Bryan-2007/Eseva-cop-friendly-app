@@ -19,10 +19,17 @@
   function getReferralFromUrlOrStorage() {
     const params = new URLSearchParams(location.search);
     const fromUrl = params.get('ref');
-    if (fromUrl) {
-      localStorage.setItem(REF_STORAGE_KEY, fromUrl.trim().toUpperCase());
+
+    // Some browsers/environments block localStorage (private mode / strict policies).
+    // We must not crash the whole app if that happens.
+    try {
+      if (fromUrl) {
+        localStorage.setItem(REF_STORAGE_KEY, fromUrl.trim().toUpperCase());
+      }
+      return localStorage.getItem(REF_STORAGE_KEY);
+    } catch {
+      return null;
     }
-    return localStorage.getItem(REF_STORAGE_KEY);
   }
 
   async function apiJson(url, options) {
@@ -128,12 +135,169 @@
     const identityTextInput = document.getElementById('identityText');
     const viewMyReportsBtn = document.getElementById('viewMyReportsBtn');
     const myReports = document.getElementById('myReports');
+    const profileWrap = document.getElementById('profileWrap');
+    const profileToggleBtn = document.getElementById('profileToggleBtn');
+    const profileMenu = document.getElementById('profileMenu');
+    const profileMenuHeader = document.getElementById('profileMenuHeader');
+    const feedbackBtn = document.getElementById('feedbackBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const profileCloseBtn = document.getElementById('profileCloseBtn');
+    const feedbackModal = document.getElementById('feedbackModal');
+    const feedbackMessage = document.getElementById('feedbackMessage');
+    const feedbackSubmitBtn = document.getElementById('feedbackSubmitBtn');
+    const feedbackCloseBtn = document.getElementById('feedbackCloseBtn');
+    const feedbackError = document.getElementById('feedbackError');
+    const alarmOverlay = document.getElementById('alarmOverlay');
+
+    function setHidden(el, hidden) {
+      if (!el) return;
+      if (hidden) el.classList.add('hidden');
+      else el.classList.remove('hidden');
+    }
+
+    function hideAlarmOverlay() {
+      if (!alarmOverlay) return;
+      setHidden(alarmOverlay, true);
+      alarmOverlay.setAttribute('aria-hidden', 'true');
+      if (alarmOverlay._hideTimer) clearTimeout(alarmOverlay._hideTimer);
+      alarmOverlay._hideTimer = null;
+    }
+
+    function showAlarmOverlay() {
+      if (!alarmOverlay) return;
+      setHidden(alarmOverlay, false);
+      alarmOverlay.setAttribute('aria-hidden', 'false');
+      if (alarmOverlay._hideTimer) clearTimeout(alarmOverlay._hideTimer);
+      alarmOverlay._hideTimer = setTimeout(() => {
+        hideAlarmOverlay();
+      }, 4500);
+    }
+
+    function openProfileMenu() {
+      if (!profileMenu) return;
+      setHidden(profileMenu, false);
+      profileMenu.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeProfileMenu() {
+      if (!profileMenu) return;
+      setHidden(profileMenu, true);
+      profileMenu.setAttribute('aria-hidden', 'true');
+    }
+
+    // Profile menu: open on touch/click, close on outside touch.
+    if (profileToggleBtn && profileMenu) {
+      profileToggleBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const isHidden = profileMenu.classList.contains('hidden');
+        if (isHidden) openProfileMenu();
+        else closeProfileMenu();
+      });
+
+      document.addEventListener('pointerdown', (e) => {
+        if (!profileMenu || profileMenu.classList.contains('hidden')) return;
+        if (profileMenu.contains(e.target) || profileToggleBtn.contains(e.target)) return;
+        closeProfileMenu();
+      });
+    }
+
+    if (profileCloseBtn) {
+      profileCloseBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        closeProfileMenu();
+      });
+    }
+
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        try {
+          await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+        } catch {
+          // logout failure is handled by redirect
+        } finally {
+          closeProfileMenu();
+          location.href = '/login.html';
+        }
+      });
+    }
+
+    if (feedbackBtn) {
+      feedbackBtn.addEventListener('click', () => {
+        closeProfileMenu();
+        setHidden(feedbackModal, false);
+        if (feedbackModal) feedbackModal.setAttribute('aria-hidden', 'false');
+        if (feedbackMessage) {
+          setTimeout(() => {
+            try {
+              feedbackMessage.focus();
+            } catch {
+              // ignore
+            }
+          }, 0);
+        }
+      });
+    }
+
+    if (feedbackCloseBtn) {
+      feedbackCloseBtn.addEventListener('click', () => {
+        setHidden(feedbackModal, true);
+        if (feedbackModal) feedbackModal.setAttribute('aria-hidden', 'true');
+        if (feedbackError) {
+          feedbackError.classList.add('hidden');
+          feedbackError.textContent = '';
+        }
+      });
+    }
+
+    if (feedbackSubmitBtn) {
+      feedbackSubmitBtn.addEventListener('click', async () => {
+        if (!feedbackMessage) return;
+        if (feedbackError) {
+          feedbackError.classList.add('hidden');
+          feedbackError.textContent = '';
+        }
+        const msg = feedbackMessage.value ? feedbackMessage.value.trim() : '';
+        if (!msg) {
+          if (feedbackError) {
+            feedbackError.textContent = 'Please write a message.';
+            feedbackError.classList.remove('hidden');
+          }
+          return;
+        }
+
+        try {
+          await apiJson('/api/feedback', {
+            method: 'POST',
+            body: JSON.stringify({ message: msg }),
+          });
+          feedbackMessage.value = '';
+          setHidden(feedbackModal, true);
+          if (feedbackModal) feedbackModal.setAttribute('aria-hidden', 'true');
+          alert('Thanks for your feedback.');
+        } catch (e) {
+          if (feedbackError) {
+            feedbackError.textContent = e.message || 'Feedback failed';
+            feedbackError.classList.remove('hidden');
+          } else {
+            alert(e.message || 'Feedback failed');
+          }
+        }
+      });
+    }
 
     const user = await loadMe();
     if (user) {
       if (meNotice) meNotice.classList.add('hidden');
       if (loginLink) loginLink.classList.add('hidden');
       if (registerLink) registerLink.classList.add('hidden');
+      if (viewMyReportsBtn) viewMyReportsBtn.classList.remove('hidden');
+      if (profileWrap) profileWrap.classList.remove('hidden');
+      if (profileMenuHeader) profileMenuHeader.textContent = user.displayName || 'User';
+    } else {
+      if (viewMyReportsBtn) viewMyReportsBtn.classList.add('hidden');
+      if (profileWrap) profileWrap.classList.add('hidden');
+      closeProfileMenu();
     }
 
     gpsBtn && gpsBtn.addEventListener('click', async () => {
@@ -172,8 +336,12 @@
         tapCount += 1;
         lastTapAt = now;
         if (tapCount >= 3) {
-          // Works on mobile browsers that support tel: links.
-          window.location.href = 'tel:100';
+          showAlarmOverlay();
+          // Auto-call in background (mobile browsers may still require user gesture; this
+          // runs within the click handler, which counts as a gesture).
+          setTimeout(() => {
+            window.location.href = 'tel:100';
+          }, 80);
           tapCount = 0;
         } else {
           sosBtn.textContent = `SOS (Tap ${Math.max(0, 3 - tapCount)} times)`;
