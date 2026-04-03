@@ -124,6 +124,31 @@ app.get("/api/db-update", async (req, res) => {
 });
 
 /* =========================
+   DATABASE DELETE TEST
+========================= */
+
+app.get("/api/db-delete", async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from("test")
+      .delete()
+      .eq("id", 2);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: "Record deleted",
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
+/* =========================
    EXPORT FOR VERCEL
 ========================= */
 
