@@ -65,6 +65,38 @@ app.get("/api/db-test", async (req, res) => {
 });
 
 /* =========================
+   INSERT TEST
+========================= */
+
+app.post("/api/db-insert", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("test")
+      .insert([
+        {
+          // created_at auto generated
+        },
+      ])
+      .select();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: "Record inserted",
+      data,
+    });
+  } catch (err) {
+    console.error("INSERT ERROR:", err.message);
+
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
+/* =========================
    EXPORT FOR VERCEL
 ========================= */
 
