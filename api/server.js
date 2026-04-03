@@ -68,7 +68,7 @@ app.get("/api/db-test", async (req, res) => {
    INSERT TEST
 ========================= */
 
-app.post("/api/db-insert", async (req, res) => {
+app.get("/api/db-insert", async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("test")
