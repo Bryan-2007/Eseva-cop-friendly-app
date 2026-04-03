@@ -1,62 +1,55 @@
-const path = require('path');
-const crypto = require('crypto');
+const path = require("path");
+const fs = require("fs");
+const crypto = require("crypto");
 
-const express = require('express');
-const session = require('express-session');
-const cookieParser = require('cookie-parser');
-const bcrypt = require('bcrypt');
-const multer = require('multer');
-const { Pool } = require('pg');
-const { put } = require('@vercel/blob');
-const pgSession = require('connect-pg-simple')(session);
+require("dotenv").config();
+
+const express = require("express");
+const session = require("express-session");
+const cookieParser = require("cookie-parser");
+const bcrypt = require("bcrypt");
+const multer = require("multer");
+const { Pool } = require("pg");
+const pgSession = require("connect-pg-simple")(session);
 
 const app = express();
 
-/* =====================================================
-   ENV CONFIG
-===================================================== */
+/* --------------------------------------------------
+   CONFIG
+-------------------------------------------------- */
 
-const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-change-me';
+const SESSION_SECRET = process.env.SESSION_SECRET || "dev-change-me";
 
-const COMPLAINT_REWARD_AMOUNT =
-  Number(process.env.COMPLAINT_REWARD_AMOUNT || 1000);
+const ROOT_DIR = __dirname;
+const UPLOADS_DIR =
+  process.env.UPLOADS_DIR || path.join(ROOT_DIR, "uploads");
 
-const REFERRAL_REWARD_AMOUNT =
-  Number(process.env.REFERRAL_REWARD_AMOUNT || 500);
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
-const CURRENCY = process.env.CURRENCY || 'INR';
-
-/* =====================================================
-   DATABASE (Supabase Postgres)
-===================================================== */
+/* --------------------------------------------------
+   DATABASE
+-------------------------------------------------- */
 
 const pool = new Pool({
   connectionString:
     process.env.POSTGRES_URL || process.env.DATABASE_URL,
   ssl:
-    process.env.NODE_ENV === 'production'
+    process.env.NODE_ENV === "production"
       ? { rejectUnauthorized: false }
       : false,
 });
 
-pool.on('error', (err) => {
-  console.error('[DB] Unexpected error', err);
+pool.on("error", (err) => {
+  console.error("[DB] Unexpected error", err);
 });
 
-const sessionStore = new pgSession({
-  pool,
-  tableName: 'session',
-  createTableIfMissing: true,
-});
-
-/* =====================================================
-   DB INIT (RUN ONLY ONCE PER INSTANCE)
-===================================================== */
+/* ---------- Lazy DB Init (SERVERLESS SAFE) ---------- */
 
 let dbInitialized = false;
 
 async function initDb() {
   const client = await pool.connect();
+
   try {
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -64,62 +57,54 @@ async function initDb() {
         email TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         display_name TEXT NOT NULL,
-        referral_code TEXT UNIQUE NOT NULL,
-        referrer_user_id TEXT NULL,
-        created_at BIGINT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS police_users (
-        id TEXT PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        created_at BIGINT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS complaints (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        location_tag TEXT NOT NULL,
-        description TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'submitted',
-        created_at BIGINT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS complaint_images (
-        id TEXT PRIMARY KEY,
-        complaint_id TEXT NOT NULL,
-        file_path TEXT NOT NULL,
         created_at BIGINT NOT NULL
       );
     `);
 
-    console.log('[DB] Initialized');
+    console.log("[DB] Initialized");
   } finally {
     client.release();
   }
 }
 
-async function ensureDb(req, res, next) {
+async function ensureDb() {
   if (!dbInitialized) {
     await initDb();
     dbInitialized = true;
   }
-  next();
 }
 
-/* =====================================================
+/* --------------------------------------------------
    MIDDLEWARE
-===================================================== */
+-------------------------------------------------- */
 
-app.use(ensureDb);
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+/* DB init middleware */
+app.use(async (req, res, next) => {
+  try {
+    await ensureDb();
+    next();
+  } catch (err) {
+    console.error("DB init failed:", err);
+    res.status(500).json({ error: "Database initialization failed" });
+  }
+});
+
+/* Sessions */
+
+const sessionStore = new pgSession({
+  pool,
+  tableName: "session",
+  createTableIfMissing: true,
+});
 
 app.use(
   session({
     store:
-      process.env.NODE_ENV === 'production'
+      process.env.NODE_ENV === "production"
         ? sessionStore
         : undefined,
     secret: SESSION_SECRET,
@@ -127,137 +112,127 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 1000 * 60 * 60 * 24 * 30,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
     },
   })
 );
 
-/* =====================================================
+app.use("/uploads", express.static(UPLOADS_DIR));
+app.use(express.static(path.join(ROOT_DIR, "public")));
+
+/* --------------------------------------------------
    HELPERS
-===================================================== */
+-------------------------------------------------- */
 
 function randomId() {
-  return crypto.randomBytes(16).toString('hex');
+  return crypto.randomBytes(16).toString("hex");
 }
 
 function requireUser(req, res, next) {
   if (!req.session.userId)
-    return res.status(401).json({ error: 'Not logged in' });
+    return res.status(401).json({ error: "Not logged in" });
   next();
 }
 
-/* =====================================================
-   AUTH
-===================================================== */
+/* --------------------------------------------------
+   HEALTH CHECK (IMPORTANT)
+-------------------------------------------------- */
 
-app.post('/api/auth/register', async (req, res) => {
+app.get("/api/health", async (req, res) => {
   try {
-    const email = String(req.body.email || '').toLowerCase();
-    const password = String(req.body.password || '');
-    const displayName = String(req.body.displayName || '');
+    await pool.query("SELECT 1");
+    res.json({ status: "ok" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ status: "db-error" });
+  }
+});
+
+/* --------------------------------------------------
+   AUTH ROUTES
+-------------------------------------------------- */
+
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const email = String(req.body.email || "").toLowerCase();
+    const password = String(req.body.password || "");
+    const displayName = String(req.body.displayName || "");
 
     if (!email || !password || !displayName)
-      return res.status(400).json({ error: 'Missing fields' });
+      return res.status(400).json({ error: "Missing fields" });
 
     const existing = await pool.query(
-      'SELECT id FROM users WHERE email=$1',
+      "SELECT id FROM users WHERE email=$1",
       [email]
     );
 
     if (existing.rows.length)
-      return res.status(409).json({ error: 'Email exists' });
+      return res.status(409).json({ error: "User exists" });
 
     const id = randomId();
-    const hash = await bcrypt.hash(password, 10);
+    const password_hash = await bcrypt.hash(password, 10);
 
     await pool.query(
       `INSERT INTO users
-       (id,email,password_hash,display_name,referral_code,created_at)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
-      [id, email, hash, displayName, randomId().slice(0, 6), Date.now()]
+       (id,email,password_hash,display_name,created_at)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [id, email, password_hash, displayName, Date.now()]
     );
 
     req.session.userId = id;
 
     res.json({ ok: true });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'Server error' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
   }
 });
 
-/* =====================================================
-   FILE UPLOAD (VERCEL BLOB ONLY)
-===================================================== */
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const email = String(req.body.email || "").toLowerCase();
+    const password = String(req.body.password || "");
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
-});
+    const result = await pool.query(
+      "SELECT * FROM users WHERE email=$1",
+      [email]
+    );
 
-app.post(
-  '/api/complaints',
-  requireUser,
-  upload.array('evidence', 10),
-  async (req, res) => {
-    try {
-      const complaintId = randomId();
+    if (!result.rows.length)
+      return res.status(401).json({ error: "Invalid credentials" });
 
-      await pool.query(
-        `INSERT INTO complaints
-         (id,user_id,location_tag,description,created_at)
-         VALUES ($1,$2,$3,$4,$5)`,
-        [
-          complaintId,
-          req.session.userId,
-          req.body.locationTag,
-          req.body.description,
-          Date.now(),
-        ]
-      );
+    const user = result.rows[0];
 
-      const files = req.files || [];
+    const ok = await bcrypt.compare(password, user.password_hash);
 
-      for (const f of files) {
-        const filename = `${randomId()}.png`;
+    if (!ok)
+      return res.status(401).json({ error: "Invalid credentials" });
 
-        const blob = await put(
-          `complaints/${complaintId}/${filename}`,
-          f.buffer,
-          {
-            access: 'public',
-            contentType: f.mimetype,
-          }
-        );
+    req.session.userId = user.id;
 
-        await pool.query(
-          `INSERT INTO complaint_images
-           (id,complaint_id,file_path,created_at)
-           VALUES ($1,$2,$3,$4)`,
-          [randomId(), complaintId, blob.url, Date.now()]
-        );
-      }
-
-      res.json({ ok: true, complaintId });
-    } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: 'Upload failed' });
-    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
   }
-);
-
-/* =====================================================
-   HEALTH CHECK
-===================================================== */
-
-app.get('/api/health', (_, res) => {
-  res.json({ status: 'ok' });
 });
 
-/* =====================================================
+/* --------------------------------------------------
+   SAMPLE PROTECTED ROUTE
+-------------------------------------------------- */
+
+app.get("/api/me", requireUser, async (req, res) => {
+  const result = await pool.query(
+    "SELECT id,email,display_name FROM users WHERE id=$1",
+    [req.session.userId]
+  );
+
+  res.json(result.rows[0]);
+});
+
+/* --------------------------------------------------
    EXPORT (CRITICAL FOR VERCEL)
-===================================================== */
+-------------------------------------------------- */
 
 module.exports = app;
