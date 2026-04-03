@@ -1,52 +1,34 @@
 import express from "express";
-import multer from "multer";
-import fs from "fs";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
 
 const app = express();
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-/* ================================
-   VERCEL SAFE UPLOAD DIRECTORY
-   ================================ */
+/* =========================
+   SUPABASE CONFIG
+========================= */
 
-// Only writable location in Vercel
-const uploadDir = "/tmp/uploads";
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+/* =========================
+   HEALTH CHECK
+========================= */
 
-/* ================================
-   MULTER CONFIG
-   ================================ */
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-
-const upload = multer({ storage });
-
-/* ================================
-   ROUTES
-   ================================ */
-
-// Health check (VERY IMPORTANT)
 app.get("/api/health", (req, res) => {
-  res.status(200).json({
+  res.json({
     status: "ok",
     message: "Server running on Vercel",
   });
 });
 
-// Example protected route
+/* =========================
+   BASIC TEST ROUTE
+========================= */
+
 app.get("/api/me", (req, res) => {
   res.json({
     success: true,
@@ -54,27 +36,36 @@ app.get("/api/me", (req, res) => {
   });
 });
 
-// Example upload route
-app.post("/api/upload", upload.single("file"), (req, res) => {
-  res.json({
-    success: true,
-    file: req.file,
-  });
+/* =========================
+   DATABASE TEST ROUTE
+========================= */
+
+app.get("/api/db-test", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("test")     // table name in Supabase
+      .select("*")
+      .limit(1);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: "Database connected successfully",
+      data,
+    });
+  } catch (err) {
+    console.error("DB ERROR:", err.message);
+
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
 });
 
-/* ================================
-   ERROR HANDLER
-   ================================ */
-
-app.use((err, req, res, next) => {
-  console.error("Server Error:", err);
-  res.status(500).json({
-    error: "Internal Server Error",
-  });
-});
-
-/* ================================
-   EXPORT FOR VERCEL SERVERLESS
-   ================================ */
+/* =========================
+   EXPORT FOR VERCEL
+========================= */
 
 export default app;
