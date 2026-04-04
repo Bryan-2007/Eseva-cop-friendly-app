@@ -240,6 +240,137 @@ app.delete("/api/complaints/:id", async (req, res) => {
 });
 
 /* =========================
+   AUTH API ROUTES
+========================= */
+
+/*
+   REGISTER USER
+   POST /api/auth/register
+*/
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { name, email, password, phone } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing required fields",
+      });
+    }
+
+    // check existing user
+    const { data: existing } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", email)
+      .single();
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        error: "User already exists",
+      });
+    }
+
+    // insert user
+    const { data, error } = await supabase
+      .from("users")
+      .insert([
+        {
+          name,
+          email,
+          password, // (later hash using bcrypt)
+          phone,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: "User registered successfully",
+      user: data,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
+
+/*
+   LOGIN USER
+   POST /api/auth/login
+*/
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .eq("password", password)
+      .single();
+
+    if (error || !data) {
+      return res.status(401).json({
+        success: false,
+        error: "Invalid credentials",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Login successful",
+      user: data,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
+
+/* =========================
+   REWARDS API
+========================= */
+
+/*
+   GET USER REWARDS
+   GET /api/rewards/:user_id
+*/
+app.get("/api/rewards/:user_id", async (req, res) => {
+  try {
+    const { user_id } = req.params;
+
+    const { data, error } = await supabase
+      .from("rewards")
+      .select("*")
+      .eq("user_id", user_id)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      rewards: data,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+});
+
+/* =========================
    EXPORT FOR VERCEL
 ========================= */
 
