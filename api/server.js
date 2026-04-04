@@ -2,7 +2,16 @@ import express from "express";
 import { createClient } from "@supabase/supabase-js";
 
 const app = express();
+
+/* =========================
+   BODY PARSERS
+========================= */
+
+/* Accept JSON (fetch requests) */
 app.use(express.json());
+
+/* Accept HTML form submissions */
+app.use(express.urlencoded({ extended: true }));
 
 /* =========================
    SUPABASE CONFIG
@@ -39,14 +48,14 @@ app.get("/api/me", (req, res) => {
 /* ========= REGISTER USER ========= */
 app.post("/api/auth/register", async (req, res) => {
   try {
-    console.log("REGISTER BODY:", req.body);
+    let { name, email, password, phone } = req.body || {};
 
-    let { name, email, password, phone } = req.body;
+    /* normalize inputs (works for JSON + forms) */
+    name = typeof name === "string" ? name.trim() : "";
+    email = typeof email === "string" ? email.trim() : "";
+    password = typeof password === "string" ? password.trim() : "";
 
-    name = name?.trim();
-    email = email?.trim();
-    password = password?.trim();
-
+    /* required fields */
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -75,8 +84,7 @@ app.post("/api/auth/register", async (req, res) => {
         {
           name,
           email,
-          phone,
-          password_hash: password, // matches DB column
+          password_hash: password, // temporary (later bcrypt)
         },
       ])
       .select()
@@ -90,7 +98,6 @@ app.post("/api/auth/register", async (req, res) => {
       user: data,
     });
   } catch (err) {
-    console.error("REGISTER ERROR:", err);
     res.status(500).json({
       success: false,
       error: err.message,
@@ -101,7 +108,10 @@ app.post("/api/auth/register", async (req, res) => {
 /* ========= LOGIN USER ========= */
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body || {};
+
+    email = typeof email === "string" ? email.trim() : "";
+    password = typeof password === "string" ? password.trim() : "";
 
     if (!email || !password) {
       return res.status(400).json({
