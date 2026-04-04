@@ -243,10 +243,10 @@ app.delete("/api/complaints/:id", async (req, res) => {
    AUTH API ROUTES
 ========================= */
 
-/*
+/*===============================
    REGISTER USER
    POST /api/auth/register
-*/
+=================================*/
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { name, email, password, phone } = req.body;
@@ -301,11 +301,15 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
+app.post("/api/auth/register", async (req, res) => {
+  console.log("REGISTER BODY:", req.body);
+});
 
-/*
+
+/*======================================
    LOGIN USER
    POST /api/auth/login
-*/
+=======================================*/
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
