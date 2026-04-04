@@ -82,9 +82,9 @@ app.post("/api/auth/register", async (req, res) => {
       .from("users")
       .insert([
         {
-          name,
-          email,
-          password: password, // temporary (later bcrypt)
+          name: name,
+          email: email,
+          password_hash: password, // temporary (later bcrypt)
         },
       ])
       .select()

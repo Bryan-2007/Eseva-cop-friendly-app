@@ -505,7 +505,7 @@
       setError(errorEl, '');
 
       const payload = {
-        displayName: document.getElementById('displayName').value,
+        name: document.getElementById('displayName').value,
         email: document.getElementById('email').value,
         password: document.getElementById('password').value,
       };
