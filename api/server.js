@@ -48,15 +48,15 @@ app.get("/api/me", (req, res) => {
 /* ========= REGISTER USER ========= */
 app.post("/api/auth/register", async (req, res) => {
   try {
-    let { name, email, password_hash } = req.body || {};
+    let { name, email, password } = req.body || {};
 
     /* normalize inputs (works for JSON + forms) */
     name = typeof name === "string" ? name.trim() : "";
     email = typeof email === "string" ? email.trim() : "";
-    password_hash = typeof password_hash === "string" ? password_hash.trim() : "";
+    password = typeof password === "string" ? password.trim() : "";
 
     /* required fields */
-    if (!name || !email || !password_hash) {
+    if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
         error: "Missing required fields",
@@ -84,7 +84,7 @@ app.post("/api/auth/register", async (req, res) => {
         {
           name,
           email,
-          password_hash: password_hash, // temporary (later bcrypt)
+          password: password, // temporary (later bcrypt)
         },
       ])
       .select()
@@ -106,6 +106,7 @@ app.post("/api/auth/register", async (req, res) => {
 });
 
 /* ========= LOGIN USER ========= */
+
 app.post("/api/auth/login", async (req, res) => {
   try {
     let { email, password } = req.body || {};
