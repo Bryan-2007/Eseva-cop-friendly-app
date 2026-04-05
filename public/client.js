@@ -130,15 +130,11 @@
       return;
     }
 
-    if (!user) {
-      location.href = '/login.html';
-      return;
-    }
-
     const meNotice = document.getElementById('meNotice');
     const loginLink = document.getElementById('loginLink');
     const registerLink = document.getElementById('registerLink');
     const form = document.getElementById('complaintForm');
+    const reportSectionTitle = document.getElementById('reportSectionTitle');
     const formError = document.getElementById('formError');
     const viewMyReportsBtn = document.getElementById('viewMyReportsBtn');
     const myReports = document.getElementById('myReports');
@@ -299,10 +295,17 @@
       if (meNotice) meNotice.classList.add('hidden');
       if (loginLink) loginLink.classList.add('hidden');
       if (registerLink) registerLink.classList.add('hidden');
+      if (form) form.classList.remove('hidden');
+      if (reportSectionTitle) reportSectionTitle.classList.remove('hidden');
       if (viewMyReportsBtn) viewMyReportsBtn.classList.remove('hidden');
       if (profileWrap) profileWrap.classList.remove('hidden');
       if (profileMenuHeader) profileMenuHeader.textContent = currentLoggedInUser.displayName || 'User';
     } else {
+      if (meNotice) meNotice.classList.remove('hidden');
+      if (loginLink) loginLink.classList.remove('hidden');
+      if (registerLink) registerLink.classList.remove('hidden');
+      if (form) form.classList.add('hidden');
+      if (reportSectionTitle) reportSectionTitle.classList.add('hidden');
       if (viewMyReportsBtn) viewMyReportsBtn.classList.add('hidden');
       if (profileWrap) profileWrap.classList.add('hidden');
       closeProfileMenu();
@@ -337,10 +340,10 @@
       e.preventDefault();
       setError(formError, '');
 
-      const currentUser = await loadMe();
-      if (!currentUser) {
+      const formUser = await loadMe();
+      if (!formUser) {
         setError(formError, 'Please login first.');
-        location.href = '/login';
+        location.href = '/login.html';
         return;
       }
 

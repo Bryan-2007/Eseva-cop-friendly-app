@@ -160,52 +160,31 @@
         </div>
       </div>
 
-      <div class="section-title">Report Incident</div>
-      <form id="complaintForm">
+      <div class="section-title hidden" id="reportSectionTitle">Report Incident</div>
+      <form id="complaintForm" class="hidden">
         <div class="row">
           <div class="col">
-            <label for="locationTag">Location</label>
-            <input id="locationTag" name="locationTag" placeholder="e.g., Main Road, Near Hospital" required />
-            <button class="ghost" type="button" id="gpsBtn" style="margin-top:10px; width: auto;">📍 Use my GPS</button>
-            <div id="gpsResult" class="muted" style="margin-top:8px; display:none;"></div>
-            <div class="muted" style="margin-top:8px;">GPS will provide precise coordinates.</div>
+            <label for="title">Title</label>
+            <input id="title" name="title" placeholder="Brief summary of the incident" required />
           </div>
         </div>
 
         <div class="row">
           <div class="col">
-            <label for="reporterName">Your Name (optional)</label>
-            <input id="reporterName" name="reporterName" placeholder="First and last name" />
-            <div class="muted" style="margin-top:8px;">Help police identify you.</div>
-          </div>
-          <div class="col">
-            <label for="reporterPhone">Phone Number (optional)</label>
-            <input id="reporterPhone" name="reporterPhone" type="tel" placeholder="10-digit mobile number" />
-            <div class="muted" style="margin-top:8px;">For police follow-up contact.</div>
+            <label for="category">Category</label>
+            <select id="category" name="category" style="width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid #e0e6ed; font-size: 14px; font-family: inherit; transition: all 0.2s;">
+              <option value="">Select a category...</option>
+              <option value="theft">Theft</option>
+              <option value="accident">Accident</option>
+              <option value="violence">Violence</option>
+              <option value="traffic">Traffic</option>
+              <option value="other">Other</option>
+            </select>
           </div>
         </div>
 
-        <label for="crimeType">Crime Type</label>
-        <select id="crimeType" name="crimeType" style="width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid #e0e6ed; font-size: 14px; font-family: inherit; transition: all 0.2s;" required>
-          <option value="">Select a crime type...</option>
-          <option value="theft">Theft</option>
-          <option value="road_fight">Road Fight</option>
-          <option value="domestic_violence">Domestic Violence</option>
-          <option value="murder">Murder</option>
-          <option value="chain_snatching">Chain Snatching</option>
-          <option value="breaking_govt_rules">Breaking Govt Rules</option>
-          <option value="accident">Accident</option>
-          <option value="fire">Fire</option>
-          <option value="shootout">Shootout</option>
-        </select>
-        <div class="muted" style="margin-top:8px;">Select the type of crime reported.</div>
-
-        <label for="description">What Happened?</label>
+        <label for="description">Description</label>
         <textarea id="description" name="description" placeholder="Describe the incident in detail..." required></textarea>
-
-        <label for="evidence">Evidence Photos (optional)</label>
-        <input id="evidence" name="evidence" type="file" accept="image/*" multiple />
-        <div class="muted">Up to 10 photos, 5MB each max.</div>
 
         <div class="row" style="margin-top: 20px; gap: 10px;">
           <button class="primary" type="submit" style="flex: 1;">Submit Report</button>
