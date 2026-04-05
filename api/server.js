@@ -1,260 +1,236 @@
 import express from "express";
 import { createClient } from "@supabase/supabase-js";
+import bcrypt from "bcryptjs";
 
 const app = express();
 
 /* =========================
    BODY PARSERS
 ========================= */
-
-/* Accept JSON (fetch requests) */
 app.use(express.json());
-
-/* Accept HTML form submissions */
 app.use(express.urlencoded({ extended: true }));
 
 /* =========================
-   SUPABASE CONFIG
+   SUPABASE
 ========================= */
-
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
 
 /* =========================
-   HEALTH CHECK
+   SIMPLE SESSION (cookie)
 ========================= */
+const sessions = new Map();
 
-app.get("/api/health", (req, res) => {
-  res.json({
-    status: "ok",
-    message: "Server running",
-  });
+function createSession(user) {
+  const token = crypto.randomUUID();
+  sessions.set(token, user);
+  return token;
+}
+
+function getUser(req) {
+  const token = req.headers.cookie?.replace("session=", "");
+  if (!token) return null;
+  return sessions.get(token) || null;
+}
+
+/* =========================
+   HEALTH
+========================= */
+app.get("/api/health", (_, res) => {
+  res.json({ status: "ok" });
 });
 
 /* =========================
-   BASIC TEST
+   CURRENT USER
 ========================= */
-
 app.get("/api/me", (req, res) => {
-  res.json({ success: true, message: "API working" });
+  const user = getUser(req);
+  res.json({ user: user || null });
 });
 
 /* =====================================================
-   AUTH API ROUTES
+   AUTH
 ===================================================== */
 
-/* ========= REGISTER USER ========= */
+/* ========= REGISTER ========= */
 app.post("/api/auth/register", async (req, res) => {
   try {
     let { name, email, password } = req.body || {};
 
-    /* normalize inputs (works for JSON + forms) */
-    name = typeof name === "string" ? name.trim() : "";
-    email = typeof email === "string" ? email.trim() : "";
-    password = typeof password === "string" ? password.trim() : "";
+    name = name?.trim() || "";
+    email = email?.trim() || "";
+    password = password?.trim() || "";
 
-    /* required fields */
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: "Missing required fields",
-      });
-    }
+    if (!name || !email || !password)
+      return res.status(400).json({ error: "Missing fields" });
 
-    /* check existing user */
-    const { data: existingUser } = await supabase
+    const { data: existing } = await supabase
       .from("users")
       .select("id")
       .eq("email", email)
       .maybeSingle();
 
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        error: "User already exists",
-      });
-    }
+    if (existing)
+      return res.status(400).json({ error: "User already exists" });
 
-    /* insert user */
+    const password_hash = await bcrypt.hash(password, 10);
+
     const { data, error } = await supabase
       .from("users")
-      .insert([
-        {
-          name: name,
-          email: email,
-          password_hash: password, // temporary (later bcrypt)
-        },
-      ])
+      .insert([{ name, email, password_hash }])
       .select()
       .single();
 
     if (error) throw error;
 
+    delete data.password_hash;
+
+    const token = createSession(data);
+
+    res.setHeader("Set-Cookie", `session=${token}; Path=/; HttpOnly`);
+
     res.json({
-      success: true,
-      message: "User registered successfully",
+      ok: true,
       user: data,
     });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
-/* ========= LOGIN USER ========= */
-
+/* ========= LOGIN ========= */
 app.post("/api/auth/login", async (req, res) => {
   try {
     let { email, password } = req.body || {};
 
-    email = typeof email === "string" ? email.trim() : "";
-    password = typeof password === "string" ? password.trim() : "";
+    email = email?.trim() || "";
+    password = password?.trim() || "";
 
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: "Email and password required",
-      });
-    }
+    if (!email || !password)
+      return res.status(400).json({ error: "Email and password required" });
 
-    const { data, error } = await supabase
+    const { data: user, error } = await supabase
       .from("users")
       .select("*")
       .eq("email", email)
-      .eq("password_hash", password)
       .maybeSingle();
 
-    if (error || !data) {
-      return res.status(401).json({
-        success: false,
-        error: "Invalid credentials",
-      });
-    }
+    if (error || !user)
+      return res.status(401).json({ error: "Invalid credentials" });
+
+    const match = await bcrypt.compare(
+      password,
+      user.password_hash
+    );
+
+    if (!match)
+      return res.status(401).json({ error: "Invalid credentials" });
+
+    delete user.password_hash;
+
+    const token = createSession(user);
+    res.setHeader("Set-Cookie", `session=${token}; Path=/; HttpOnly`);
 
     res.json({
-      success: true,
-      message: "Login successful",
-      user: data,
+      ok: true,
+      user,
     });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
+/* ========= LOGOUT ========= */
+app.post("/api/auth/logout", (req, res) => {
+  const token = req.headers.cookie?.replace("session=", "");
+  if (token) sessions.delete(token);
+
+  res.setHeader("Set-Cookie", "session=; Max-Age=0; Path=/");
+  res.json({ ok: true });
+});
+
 /* =====================================================
-   COMPLAINT API
+   COMPLAINTS
 ===================================================== */
 
 app.post("/api/complaints", async (req, res) => {
   try {
+    const user = getUser(req);
+    if (!user) return res.status(401).json({ error: "Login required" });
+
     const {
-      user_id,
-      station_id,
-      title,
+      locationTag,
       description,
-      category,
-      priority,
+      crimeType,
+      reporterName,
+      reporterPhone,
     } = req.body;
 
     const { data, error } = await supabase
       .from("complaints")
       .insert([
         {
-          user_id,
-          station_id,
-          title,
+          user_id: user.id,
           description,
-          category,
-          priority,
+          category: crimeType,
+          location_tag: locationTag,
+          reporter_name: reporterName,
+          reporter_phone: reporterPhone,
         },
       ])
       .select();
 
     if (error) throw error;
 
-    res.json({ success: true, message: "Complaint created", data });
+    res.json({ ok: true, complaints: data });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.get("/api/complaints", async (req, res) => {
+/* user's complaints */
+app.get("/api/complaints/mine", async (req, res) => {
   try {
+    const user = getUser(req);
+    if (!user) return res.status(401).json({ error: "Login required" });
+
     const { data, error } = await supabase
       .from("complaints")
-      .select(
-        `*, users(name,email), police_stations(station_name,district)`
-      )
+      .select("*")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    res.json({ success: true, data });
+    res.json({ complaints: data });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.patch("/api/complaints/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, priority } = req.body;
-
-    const { data, error } = await supabase
-      .from("complaints")
-      .update({
-        status,
-        priority,
-        updated_at: new Date(),
-      })
-      .eq("id", id)
-      .select();
-
-    if (error) throw error;
-
-    res.json({ success: true, message: "Complaint updated", data });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
 /* =====================================================
-   REWARDS API
+   REWARDS
 ===================================================== */
 
-app.get("/api/rewards/:user_id", async (req, res) => {
+app.get("/api/rewards/mine", async (req, res) => {
   try {
-    const { user_id } = req.params;
+    const user = getUser(req);
+    if (!user) return res.status(401).json({ error: "Login required" });
 
     const { data, error } = await supabase
       .from("rewards")
       .select("*")
-      .eq("user_id", user_id)
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
-    res.json({
-      success: true,
-      rewards: data,
-    });
+    res.json({ rewards: data });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    });
+    res.status(500).json({ error: err.message });
   }
 });
-
-/* =========================
-   EXPORT FOR VERCEL
-========================= */
 
 export default app;

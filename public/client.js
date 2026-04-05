@@ -513,7 +513,7 @@
 
       try {
         const data = await apiJson('/api/auth/register', { method: 'POST', body: JSON.stringify(payload) });
-        if (data && data.ok) location.href = '/';
+        if (data?.success) location.href = '/';
       } catch (err) {
         setError(errorEl, err.message || 'Registration failed');
       }
@@ -537,7 +537,7 @@
 
       try {
         const data = await apiJson('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) });
-        if (data && data.ok) location.href = '/';
+        if (data?.success) location.href = '/';
       } catch (err) {
         setError(errorEl, err.message || 'Login failed');
       }
