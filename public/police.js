@@ -158,7 +158,9 @@
 
     try {
       const data = await apiJson('/api/police/rewards-history');
+      console.log('Rewards API response:', data);
       const rewards = data.rewards || [];
+      console.log('Rewards array:', rewards, 'Length:', rewards.length);
 
       if (!rewards.length) {
         rewardsContainer.innerHTML = '<div class="muted">No rewards distributed yet.</div>';

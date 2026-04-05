@@ -336,6 +336,8 @@ app.post("/api/police/complaints/:id/status", async (req, res) => {
       const rewardAmount = parseInt(process.env.COMPLAINT_REWARD_AMOUNT, 10) || 500;
       const currency = process.env.CURRENCY || "INR";
 
+      console.log('[REWARD] Creating reward - user_id:', complaint.user_id, 'amount:', rewardAmount, 'currency:', currency);
+
       const { error: rewardError } = await supabase
         .from("rewards")
         .insert([
@@ -348,6 +350,7 @@ app.post("/api/police/complaints/:id/status", async (req, res) => {
           },
         ]);
 
+      console.log('[REWARD] Insert result - error:', rewardError);
       if (rewardError) throw rewardError;
     }
 
@@ -364,6 +367,8 @@ app.get("/api/police/rewards-history", async (req, res) => {
     if (!user || user.role !== "police")
       return res.status(401).json({ error: "Police access required" });
 
+    console.log('[POLICE REWARDS] Fetching rewards for police user:', user.id);
+
     const { data, error } = await supabase
       .from("rewards")
       .select(`
@@ -376,6 +381,8 @@ app.get("/api/police/rewards-history", async (req, res) => {
         created_at
       `)
       .order("created_at", { ascending: false });
+
+    console.log('[POLICE REWARDS] Query result - error:', error, 'data:', data);
 
     if (error) throw error;
 
@@ -395,7 +402,26 @@ app.get("/api/police/rewards-history", async (req, res) => {
       })
     );
 
+    console.log('[POLICE REWARDS] Final response:', rewardsWithUsers);
     res.json({ ok: true, rewards: rewardsWithUsers });
+  } catch (err) {
+    console.error('[POLICE REWARDS] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* Test endpoint - Check rewards table directly */
+app.get("/api/test/rewards-count", async (req, res) => {
+  try {
+    const { data, count, error } = await supabase
+      .from("rewards")
+      .select("id", { count: "exact" });
+    
+    res.json({ 
+      error: error?.message || null, 
+      count, 
+      sample: data?.slice(0, 3) 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
