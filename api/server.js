@@ -28,20 +28,44 @@ const supabase = createClient(
 );
 
 /* =========================
-   SIMPLE SESSION (cookie)
+   SESSION (signed cookie)
 ========================= */
-const sessions = new Map();
+const SESSION_SECRET = process.env.SESSION_SECRET || "dev-secret-key-change-in-production";
 
-function createSession(user) {
-  const token = crypto.randomUUID();
-  sessions.set(token, user);
-  return token;
+function createSessionCookie(user) {
+  // Create a signed session cookie with user data
+  const userData = JSON.stringify({ id: user.id, email: user.email, role: user.role, name: user.name, displayName: user.name });
+  const signature = crypto.createHmac('sha256', SESSION_SECRET).update(userData).digest('hex');
+  return Buffer.from(userData).toString('base64') + '.' + signature;
+}
+
+function parseSessionCookie(cookie) {
+  try {
+    const [data, signature] = cookie.split('.');
+    const userData = Buffer.from(data, 'base64').toString('utf-8');
+    const expectedSignature = crypto.createHmac('sha256', SESSION_SECRET).update(userData).digest('hex');
+    
+    if (signature !== expectedSignature) {
+      console.log('[SESSION] Invalid signature');
+      return null;
+    }
+    
+    return JSON.parse(userData);
+  } catch (e) {
+    console.log('[SESSION] Failed to parse session:', e.message);
+    return null;
+  }
 }
 
 function getUser(req) {
-  const token = req.headers.cookie?.replace("session=", "");
-  if (!token) return null;
-  return sessions.get(token) || null;
+  const sessionCookie = req.headers.cookie?.split('session=')[1]?.split(';')[0];
+  if (!sessionCookie) {
+    console.log('[SESSION] No session cookie');
+    return null;
+  }
+  const user = parseSessionCookie(sessionCookie);
+  console.log('[SESSION] Parsed user:', user?.email);
+  return user;
 }
 
 /* =========================
@@ -146,9 +170,9 @@ app.post("/api/auth/login", async (req, res) => {
     // Add displayName for client compatibility
     user.displayName = user.name;
 
-    const token = createSession(user);
-    console.log('[LOGIN] Session created for:', email, 'role:', user.role, 'token:', token);
-    res.setHeader("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Lax`);
+    const sessionCookie = createSessionCookie(user);
+    console.log('[LOGIN] Session created for:', user.email, 'role:', user.role);
+    res.setHeader("Set-Cookie", `session=${sessionCookie}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`);
 
     res.json({
       ok: true,
@@ -162,10 +186,7 @@ app.post("/api/auth/login", async (req, res) => {
 
 /* ========= LOGOUT ========= */
 app.post("/api/auth/logout", (req, res) => {
-  const token = req.headers.cookie?.replace("session=", "");
-  if (token) sessions.delete(token);
-
-  res.setHeader("Set-Cookie", "session=; Max-Age=0; Path=/");
+  res.setHeader("Set-Cookie", "session=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax");
   res.json({ ok: true });
 });
 

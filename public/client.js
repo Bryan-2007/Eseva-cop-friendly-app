@@ -122,14 +122,18 @@
   }
 
   async function initComplaintPage() {
+    console.log('[COMPLAINT] Initializing complaint page...');
     const user = await loadMe();
+    console.log('[COMPLAINT] loadMe() returned:', user);
     
     // Redirect police users to their dashboard
     if (user && user.role === 'police') {
+      console.log('[COMPLAINT] Police user detected, redirecting to police.html');
       location.href = '/police.html';
       return;
     }
 
+    console.log('[COMPLAINT] Logged in user:', user?.email);
     const meNotice = document.getElementById('meNotice');
     const loginLink = document.getElementById('loginLink');
     const registerLink = document.getElementById('registerLink');
@@ -291,7 +295,9 @@
     }
 
     const currentLoggedInUser = await loadMe();
+    console.log('[COMPLAINT] UI status check - currentLoggedInUser:', currentLoggedInUser?.email);
     if (currentLoggedInUser) {
+      console.log('[COMPLAINT] User is logged in, showing complaint form');
       if (meNotice) meNotice.classList.add('hidden');
       if (loginLink) loginLink.classList.add('hidden');
       if (registerLink) registerLink.classList.add('hidden');
@@ -301,6 +307,7 @@
       if (profileWrap) profileWrap.classList.remove('hidden');
       if (profileMenuHeader) profileMenuHeader.textContent = currentLoggedInUser.displayName || 'User';
     } else {
+      console.log('[COMPLAINT] User not logged in, showing login prompt');
       if (meNotice) meNotice.classList.remove('hidden');
       if (loginLink) loginLink.classList.remove('hidden');
       if (registerLink) registerLink.classList.remove('hidden');
