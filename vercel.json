@@ -3,6 +3,10 @@
   "name": "tnpol-api",
   "routes": [
     {
+      "src": "/uploads/(.*)",
+      "dest": "/uploads/$1"
+    },
+    {
       "src": "/(.*)",
       "dest": "api/server.js"
     }
