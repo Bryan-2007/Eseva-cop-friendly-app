@@ -1,6 +1,7 @@
 import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 
 const app = express();
 
@@ -86,6 +87,8 @@ app.post("/api/auth/register", async (req, res) => {
     if (error) throw error;
 
     delete data.password_hash;
+    // Add displayName for client compatibility
+    data.displayName = data.name;
 
     const token = createSession(data);
 
@@ -129,6 +132,8 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
 
     delete user.password_hash;
+    // Add displayName for client compatibility
+    user.displayName = user.name;
 
     const token = createSession(user);
     res.setHeader("Set-Cookie", `session=${token}; Path=/; HttpOnly`);
@@ -161,30 +166,33 @@ app.post("/api/complaints", async (req, res) => {
     if (!user) return res.status(401).json({ error: "Login required" });
 
     const {
-      locationTag,
+      title,
       description,
-      crimeType,
-      reporterName,
-      reporterPhone,
+      category,
     } = req.body;
+
+    if (!title || !description) {
+      return res.status(400).json({ error: "Title and description are required" });
+    }
 
     const { data, error } = await supabase
       .from("complaints")
       .insert([
         {
           user_id: user.id,
+          title,
           description,
-          category: crimeType,
-          location_tag: locationTag,
-          reporter_name: reporterName,
-          reporter_phone: reporterPhone,
+          category,
+          status: "submitted",
+          priority: "normal",
         },
       ])
-      .select();
+      .select()
+      .single();
 
     if (error) throw error;
 
-    res.json({ ok: true, complaints: data });
+    res.json({ ok: true, complaint: data });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -204,7 +212,7 @@ app.get("/api/complaints/mine", async (req, res) => {
 
     if (error) throw error;
 
-    res.json({ complaints: data });
+    res.json({ ok: true, complaints: data });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -227,7 +235,7 @@ app.get("/api/rewards/mine", async (req, res) => {
 
     if (error) throw error;
 
-    res.json({ rewards: data });
+    res.json({ ok: true, rewards: data });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

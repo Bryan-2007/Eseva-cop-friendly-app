@@ -109,18 +109,12 @@
         <div class="row" style="justify-content:space-between; align-items:flex-start;">
           <div>
             <div class="status">Status: ${escapeHtml(c.status)}</div>
-            <div class="muted">Submitted: ${escapeHtml(formatTime(c.createdAt))}</div>
-            ${c.crimeType ? `<div style="margin-top:6px;"><b>Crime Type:</b> ${escapeHtml(c.crimeType)}</div>` : ''}
-            <div style="margin-top:6px;"><b>Location:</b> ${escapeHtml(c.locationTag)}</div>
+            <div class="muted">Submitted: ${escapeHtml(formatTime(c.created_at))}</div>
+            ${c.title ? `<div style="margin-top:6px;"><b>Title:</b> ${escapeHtml(c.title)}</div>` : ''}
+            ${c.category ? `<div style="margin-top:6px;"><b>Category:</b> ${escapeHtml(c.category)}</div>` : ''}
             <div style="margin-top:6px;"><b>Description:</b> ${escapeHtml(c.description)}</div>
-            ${c.reporterName ? `<div style="margin-top:6px;"><b>Contact Name:</b> ${escapeHtml(c.reporterName)}</div>` : ''}
-            ${c.reporterPhone ? `<div style="margin-top:6px;"><b>Contact Phone:</b> ${escapeHtml(c.reporterPhone)}</div>` : ''}
-            ${c.identityText ? `<div style="margin-top:6px;"><b>Identity (optional):</b> ${escapeHtml(c.identityText)}</div>` : ''}
-            ${c.policeNotes ? `<div style="margin-top:6px;"><b>Police notes:</b> ${escapeHtml(c.policeNotes)}</div>` : ''}
+            ${c.priority ? `<div style="margin-top:6px;"><b>Priority:</b> ${escapeHtml(c.priority)}</div>` : ''}
           </div>
-        </div>
-        <div class="thumbs" style="margin-top:10px;">
-          ${c.images && c.images.length ? c.images.map((u) => `<img src="${escapeHtml(u)}" alt="evidence" />`).join('') : '<div class="muted">No images</div>'}
         </div>
       `;
       container.appendChild(card);
@@ -133,12 +127,6 @@
     const registerLink = document.getElementById('registerLink');
     const form = document.getElementById('complaintForm');
     const formError = document.getElementById('formError');
-    const gpsBtn = document.getElementById('gpsBtn');
-    const locationTagInput = document.getElementById('locationTag');
-    const gpsResultEl = document.getElementById('gpsResult');
-    const reporterNameInput = document.getElementById('reporterName');
-    const reporterPhoneInput = document.getElementById('reporterPhone');
-    const crimeTypeSelect = document.getElementById('crimeType');
     const viewMyReportsBtn = document.getElementById('viewMyReportsBtn');
     const myReports = document.getElementById('myReports');
     const profileWrap = document.getElementById('profileWrap');
@@ -307,63 +295,6 @@
       closeProfileMenu();
     }
 
-    gpsBtn && gpsBtn.addEventListener('click', async () => {
-      formError.textContent = '';
-      if (!navigator.geolocation) {
-        setError(formError, 'GPS not supported on this device.');
-        return;
-      }
-      gpsBtn.disabled = true;
-      gpsBtn.textContent = 'Getting GPS...';
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          const coords = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-          locationTagInput.value = coords;
-          gpsBtn.disabled = false;
-          gpsBtn.textContent = '✓ Location Updated';
-          if (gpsResultEl) {
-            gpsResultEl.textContent = `📍 ${coords}`;
-            gpsResultEl.style.display = 'block';
-          }
-        },
-        (err) => {
-          gpsBtn.disabled = false;
-          gpsBtn.textContent = '📍 Use my GPS';
-          setError(formError, err && err.message ? err.message : 'Could not get location.');
-        },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 1000 }
-      );
-    });
-
-    const sosBtn = document.getElementById('sosBtn');
-    if (sosBtn) {
-      let tapCount = 0;
-      let lastTapAt = 0;
-      const maxGapMs = 2200;
-      sosBtn.addEventListener('click', () => {
-        const now = Date.now();
-        if (now - lastTapAt > maxGapMs) tapCount = 0;
-        tapCount += 1;
-        lastTapAt = now;
-        if (tapCount >= 3) {
-          showAlarmOverlay();
-          // Auto-call in background (mobile browsers may still require user gesture; this
-          // runs within the click handler, which counts as a gesture).
-          setTimeout(() => {
-            window.location.href = 'tel:100';
-          }, 80);
-          tapCount = 0;
-        } else {
-          sosBtn.textContent = `SOS (Tap ${Math.max(0, 3 - tapCount)} times)`;
-          setTimeout(() => {
-            sosBtn.textContent = 'SOS (Tap 3 times)';
-          }, 1400);
-        }
-      });
-    }
-
     viewMyReportsBtn && viewMyReportsBtn.addEventListener('click', async () => {
       formError.textContent = '';
       myReports.classList.toggle('hidden');
@@ -400,19 +331,13 @@
         return;
       }
 
-      const fd = new FormData();
-      fd.append('locationTag', locationTagInput.value);
-      fd.append('description', document.getElementById('description').value);
-      fd.append('crimeType', crimeTypeSelect.value);
-      if (reporterNameInput && reporterNameInput.value) {
-        fd.append('reporterName', reporterNameInput.value);
-      }
-      if (reporterPhoneInput && reporterPhoneInput.value) {
-        fd.append('reporterPhone', reporterPhoneInput.value);
-      }
-      const evidenceInput = document.getElementById('evidence');
-      if (evidenceInput && evidenceInput.files && evidenceInput.files.length) {
-        for (const f of evidenceInput.files) fd.append('evidence', f);
+      const title = document.getElementById('title')?.value || '';
+      const description = document.getElementById('description')?.value || '';
+      const category = document.getElementById('category')?.value || '';
+
+      if (!title || !description) {
+        setError(formError, 'Title and description are required.');
+        return;
       }
 
       const submitBtn = form.querySelector('button[type="submit"]');
@@ -420,7 +345,10 @@
       submitBtn.disabled = true;
       submitBtn.textContent = 'Submitting...';
       try {
-        const data = await apiForm('/api/complaints', fd);
+        const data = await apiJson('/api/complaints', {
+          method: 'POST',
+          body: JSON.stringify({ title, description, category }),
+        });
         setError(formError, '');
         alert('Report submitted. Police will verify it for rewards.');
         form.reset();
@@ -483,8 +411,8 @@
         const card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-          <div class="status">+ ${escapeHtml(r.amount)} ${escapeHtml(r.currency)} (${escapeHtml(r.status)})</div>
-          <div class="muted">Source: ${escapeHtml(r.sourceType)} • ${escapeHtml(formatTime(r.createdAt))}</div>
+          <div class="status">+ ${escapeHtml(String(r.amount))} ${escapeHtml(r.currency || 'points')} (${escapeHtml(r.status)})</div>
+          <div class="muted">Source: ${escapeHtml(r.source_type || r.sourceType || 'complaint')} • ${escapeHtml(formatTime(r.created_at))}</div>
         `;
         rewardsList.appendChild(card);
       }
@@ -513,7 +441,7 @@
 
       try {
         const data = await apiJson('/api/auth/register', { method: 'POST', body: JSON.stringify(payload) });
-        if (data?.success) location.href = '/';
+        if (data?.ok) location.href = '/';
       } catch (err) {
         setError(errorEl, err.message || 'Registration failed');
       }
@@ -537,7 +465,7 @@
 
       try {
         const data = await apiJson('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) });
-        if (data?.success) location.href = '/';
+        if (data?.ok) location.href = '/';
       } catch (err) {
         setError(errorEl, err.message || 'Login failed');
       }
