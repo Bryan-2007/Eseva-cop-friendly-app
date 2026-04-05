@@ -85,6 +85,25 @@ create table if not exists evidence_files (
   uploaded_at timestamptz default now()
 );
 
+/* =====================================================
+   REWARDS TABLE - Create if not exists
+===================================================== */
+
+CREATE TABLE IF NOT EXISTS public.rewards (
+  id serial primary key,
+  user_id uuid references users(id) on delete cascade,
+  amount integer not null,
+  currency text default 'INR',
+  source_type text not null,  -- 'complaint_verified', 'referral', etc.
+  status text default 'awarded',  -- 'awarded', 'redeemed', etc.
+  created_at timestamptz default now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_rewards_user
+ON public.rewards(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_rewards_created
+ON public.rewards(created_at);
 
 /* =====================================================
    INDEXES (Performance Optimization)

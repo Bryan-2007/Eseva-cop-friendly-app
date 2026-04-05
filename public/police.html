@@ -48,7 +48,7 @@
             <div class="header-subtitle">Police Verification Portal</div>
           </div>
         </div>
-        <a href="/index.html" class="ghost" style="padding:10px 14px; border-radius:8px;">← Back to App</a>
+        <a href="/login.html" class="ghost" style="padding:10px 14px; border-radius:8px;" onclick="event.preventDefault(); fetch('/api/auth/logout', {method: 'POST', credentials: 'include'}).then(() => location.href='/login.html');">← Logout</a>
       </div>
     </div>
 
